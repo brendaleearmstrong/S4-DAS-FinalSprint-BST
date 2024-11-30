@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Previous Trees</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <style>
+        .tree-container {
+            margin: 20px;
+            padding: 20px;
+            border: 1px solid #ccc;
+        }
+        .node circle {
+            fill: #fff;
+            stroke: steelblue;
+            stroke-width: 3px;
+        }
+        .node text {
+            font: 12px sans-serif;
+        }
+        .link {
+            fill: none;
+            stroke: #ccc;
+            stroke-width: 2px;
+        }
+    </style>
+</head>
+<body>
+<h1>Previous Trees</h1>
+<a href="/enter-numbers"><button>Create New Tree</button></a>
+
+<div th:each="tree : ${trees}" class="tree-container">
+    <h3>Input Numbers: <span th:text="${tree.inputNumbers}"></span></h3>
+    <div th:id="'tree-' + ${tree.id}" class="tree-visualization"></div>
+    <script th:inline="javascript">
+        const treeData = /*[[${tree}]]*/ null;
+        visualizeTree(treeData, 'tree-' + treeData.id);
+    </script>
+</div>
+
+<script>
+    function visualizeTree(treeData, containerId) {
+        const nodes = treeData.nodes;
+        if (!nodes.length) return;
+
+        const hierarchy = {
+            name: nodes[0].value.toString(),
+            children: []
+        };
+
+        function addNode(index) {
+            if (index === null) return null;
+            const node = nodes[index];
+            return {
+                name: node.value.toString(),
+                children: [
+                    node.leftIndex !== null ? addNode(node.leftIndex) : null,
+                    node.rightIndex !== null ? addNode(node.rightIndex) : null
+                ].filter(n => n !== null)
+            };
+        }
+
+        hierarchy.children = [
+            nodes[0].leftIndex !== null ? addNode(nodes[0].leftIndex) : null,
+            nodes[0].rightIndex !== null ? addNode(nodes[0].rightIndex) : null
+        ].filter(n => n !== null);
+
+        d3.select("#" + containerId).html("");
+
+        const width = 600;
+        const height = 400;
+        const margin = {top: 20, right: 90, bottom: 30, left: 90};
+
+        const svg = d3.select("#" + containerId)
+            .append("svg")
+            .attr("width", width + margin.left + margin.right)
+            .attr("height", height + margin.top + margin.bottom)
+            .append("g")
+            .attr("transform", `translate(${margin.left},${margin.top})`);
+
+        const tree = d3.tree().size([height, width - 200]);
+        const root = d3.hierarchy(hierarchy);
+        const treeLayout = tree(root);
+
+        svg.selectAll(".link")
+            .data(treeLayout.links())
+            .enter().append("path")
+            .attr("class", "link")
+            .attr("d", d3.linkHorizontal()
+                .x(d => d.y)
+                .y(d => d.x));
+
+        const node = svg.selectAll(".node")
+            .data(treeLayout.descendants())
+            .enter().append("g")
+            .attr("class", "node")
+            .attr("transform", d => `translate(${d.y},${d.x})`);
+
+        node.append("circle")
+            .attr("r", 10);
+
+        node.append("text")
+            .attr("dy", ".35em")
+            .attr("x", d => d.children ? -13 : 13)
+            .style("text-anchor", d => d.children ? "end" : "start")
+            .text(d => d.data.name);
+    }
+</script>
+</body>
+</html>
