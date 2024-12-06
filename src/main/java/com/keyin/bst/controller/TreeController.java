@@ -6,10 +6,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
-
 import java.util.List;
 
 @Controller
+@RequestMapping("/")
 public class TreeController {
     private final TreeService treeService;
 
@@ -17,7 +17,7 @@ public class TreeController {
         this.treeService = treeService;
     }
 
-    @GetMapping("/")
+    @GetMapping
     public String showHome() {
         return "home";
     }
@@ -27,30 +27,37 @@ public class TreeController {
         return "enter-numbers";
     }
 
-    @PostMapping("/process-numbers")
+    @PostMapping("/api/process-numbers")
     @ResponseBody
-    public ResponseEntity<BinarySearchTree> processNumbers(@RequestBody List<Integer> numbers) {
-        return ResponseEntity.ok(treeService.createTree(numbers));
+    public ResponseEntity<?> processNumbers(@RequestBody List<Integer> numbers) {
+        try {
+            BinarySearchTree tree = treeService.createTree(numbers);
+            return ResponseEntity.ok(tree);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().body(e.getMessage());
+        }
     }
 
     @GetMapping("/previous-trees")
     public String showPreviousTrees(Model model) {
-        model.addAttribute("trees", treeService.getAllTrees());
-        return "previous-trees";
+        try {
+            List<BinarySearchTree> trees = treeService.getAllTrees();
+            model.addAttribute("trees", trees);
+            return "previous-trees";
+        } catch (Exception e) {
+            model.addAttribute("error", "Error loading trees: " + e.getMessage());
+            return "error";
+        }
     }
 
-    @GetMapping("/api/trees/{id}")
+    @GetMapping("/api/trees")
     @ResponseBody
-    public ResponseEntity<BinarySearchTree> getTree(@PathVariable Long id) {
-        return treeService.getTreeById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
-    }
-
-    @DeleteMapping("/api/trees/{id}")
-    @ResponseBody
-    public ResponseEntity<Void> deleteTree(@PathVariable Long id) {
-        treeService.deleteTree(id);
-        return ResponseEntity.noContent().build();
+    public ResponseEntity<List<BinarySearchTree>> getAllTrees() {
+        try {
+            return ResponseEntity.ok(treeService.getAllTrees());
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().build();
+        }
     }
 }
