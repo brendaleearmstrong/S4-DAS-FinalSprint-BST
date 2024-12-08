@@ -1,212 +1,215 @@
 package com.keyin.bst.model;
 
+import org.springframework.stereotype.Component;
 import jakarta.persistence.*;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 @Entity
+@Table(name = "binary_trees")
 public class BinarySearchTree {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ElementCollection
-    @CollectionTable(name = "binary_search_tree_input_numbers",
-            joinColumns = @JoinColumn(name = "binary_search_tree_id"))
-    private List<Integer> inputNumbers = new ArrayList<>();
+    @Column(name = "input_numbers", length = 1000)
+    private String inputNumbers;
 
-    @ElementCollection
-    @CollectionTable(name = "binary_search_tree_nodes",
-            joinColumns = @JoinColumn(name = "binary_search_tree_id"))
-    private List<TreeNode> nodes = new ArrayList<>();
+    @Column(name = "tree_structure", columnDefinition = "TEXT")
+    private String treeStructure;
 
-    @Column
-    private int leafNodes;
-
-    @Column
-    private int duplicates;
-
-    @Column
+    @Column(name = "tree_height")
     private int height;
 
-    @Embeddable
-    public static class TreeNode {
-        @Column(nullable = false)
-        private Integer value;
+    @Column(name = "leaf_node_count")
+    private int leafNodes;
 
-        @Column(name = "left_index")
-        private Integer leftIndex;
+    @Column(name = "is_balanced")
+    private boolean isBalanced;
 
-        @Column(name = "right_index")
-        private Integer rightIndex;
+    @Transient
+    private int balanceFactor;
 
-        @Column(nullable = false)
-        private int height = 1;
+    @Transient
+    private int totalNodes;
 
-        @Column(nullable = false)
-        private int count = 1;
+    @Transient
+    private TreeNode root;
 
-        public TreeNode(Integer value, Integer leftIndex, Integer rightIndex) {
-            this.value = value;
-            this.leftIndex = leftIndex;
-            this.rightIndex = rightIndex;
+    public List<Integer> createListOfNumbersFromString(String numberStr) {
+        if (numberStr == null || numberStr.trim().isEmpty()) {
+            return new ArrayList<>();
         }
-
-        public TreeNode() {
-        }
-
-        public Integer getValue() { return value; }
-        public void setValue(Integer value) { this.value = value; }
-        public Integer getLeftIndex() { return leftIndex; }
-        public void setLeftIndex(Integer leftIndex) { this.leftIndex = leftIndex; }
-        public Integer getRightIndex() { return rightIndex; }
-        public void setRightIndex(Integer rightIndex) { this.rightIndex = rightIndex; }
-        public int getHeight() { return height; }
-        public void setHeight(int height) { this.height = height; }
-        public int getCount() { return count; }
-        public void setCount(int count) { this.count = count; }
+        return Arrays.stream(numberStr.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .map(Integer::parseInt)
+                .toList();
     }
 
     public void insertNumbers(List<Integer> numbers) {
-        this.inputNumbers = new ArrayList<>(numbers);
-        this.nodes = new ArrayList<>();
-        for (Integer number : numbers) {
-            insert(number);
+        root = null;
+        if (numbers != null && !numbers.isEmpty()) {
+            for (Integer number : numbers) {
+                root = insertNumberRecursive(root, number);
+            }
         }
-        calculateStats();
+        updateTreeMetrics();
     }
 
-    private void insert(Integer value) {
-        if (nodes.isEmpty()) {
-            nodes.add(new TreeNode(value, null, null));
+    private TreeNode insertNumberRecursive(TreeNode node, int value) {
+        if (node == null) {
+            return new TreeNode(value);
+        }
+
+        if (value < node.getData()) {
+            node.setLeft(insertNumberRecursive(node.getLeft(), value));
+        } else if (value > node.getData()) {
+            node.setRight(insertNumberRecursive(node.getRight(), value));
+        }
+
+        node.updateMetrics();
+        return balanceNode(node);
+    }
+
+    private TreeNode balanceNode(TreeNode node) {
+        int balanceFactor = node.getBalanceFactor();
+
+        if (balanceFactor > 1) {
+            if (node.getLeft().getBalanceFactor() < 0) {
+                node.setLeft(rotateLeft(node.getLeft()));
+            }
+            return rotateRight(node);
+        }
+
+        if (balanceFactor < -1) {
+            if (node.getRight().getBalanceFactor() > 0) {
+                node.setRight(rotateRight(node.getRight()));
+            }
+            return rotateLeft(node);
+        }
+
+        return node;
+    }
+
+    private TreeNode rotateLeft(TreeNode y) {
+        if (y == null || y.getRight() == null) {
+            return y;
+        }
+
+        TreeNode x = y.getRight();
+        TreeNode T2 = x.getLeft();
+
+        x.setLeft(y);
+        y.setRight(T2);
+
+        y.updateMetrics();
+        x.updateMetrics();
+
+        return x;
+    }
+
+    private TreeNode rotateRight(TreeNode x) {
+        if (x == null || x.getLeft() == null) {
+            return x;
+        }
+
+        TreeNode y = x.getLeft();
+        TreeNode T2 = y.getRight();
+
+        y.setRight(x);
+        x.setLeft(T2);
+
+        x.updateMetrics();
+        y.updateMetrics();
+
+        return y;
+    }
+
+    private void updateTreeMetrics() {
+        if (root == null) {
+            resetMetrics();
             return;
         }
-        insertAndBalance(0, value);
+
+        root.updateMetrics();
+        height = root.getHeight();
+        balanceFactor = root.getBalanceFactor();
+        totalNodes = root.getSize();
+        leafNodes = countLeafNodes(root);
+        isBalanced = Math.abs(balanceFactor) <= 1;
+        treeStructure = generateTreeStructure(root);
     }
 
-    private int insertAndBalance(int nodeIndex, int value) {
-        TreeNode node = nodes.get(nodeIndex);
-
-        if (value == node.getValue()) {
-            node.setCount(node.getCount() + 1);
-            return nodeIndex;
-        }
-
-        if (value < node.getValue()) {
-            if (node.getLeftIndex() == null) {
-                node.setLeftIndex(nodes.size());
-                nodes.add(new TreeNode(value, null, null));
-                updateHeight(nodeIndex);
-                return balance(nodeIndex);
-            }
-            node.setLeftIndex(insertAndBalance(node.getLeftIndex(), value));
-        } else {
-            if (node.getRightIndex() == null) {
-                node.setRightIndex(nodes.size());
-                nodes.add(new TreeNode(value, null, null));
-                updateHeight(nodeIndex);
-                return balance(nodeIndex);
-            }
-            node.setRightIndex(insertAndBalance(node.getRightIndex(), value));
-        }
-
-        updateHeight(nodeIndex);
-        return balance(nodeIndex);
+    private void resetMetrics() {
+        height = 0;
+        leafNodes = 0;
+        balanceFactor = 0;
+        totalNodes = 0;
+        isBalanced = true;
+        treeStructure = "null";
     }
 
-    private void calculateStats() {
-        if (nodes.isEmpty()) return;
-
-        int leafCount = 0;
-        int duplicateCount = 0;
-
-        for (TreeNode node : nodes) {
-            if (node.getLeftIndex() == null && node.getRightIndex() == null) {
-                leafCount++;
-            }
-            if (node.getCount() > 1) {
-                duplicateCount += node.getCount() - 1;
-            }
-        }
-
-        this.leafNodes = leafCount;
-        this.duplicates = duplicateCount;
-        this.height = nodes.get(0).getHeight();
+    private int countLeafNodes(TreeNode node) {
+        if (node == null) return 0;
+        if (node.isLeaf()) return 1;
+        return countLeafNodes(node.getLeft()) + countLeafNodes(node.getRight());
     }
 
-    private void updateHeight(int nodeIndex) {
-        TreeNode node = nodes.get(nodeIndex);
-        int leftHeight = node.getLeftIndex() != null ? nodes.get(node.getLeftIndex()).getHeight() : 0;
-        int rightHeight = node.getRightIndex() != null ? nodes.get(node.getRightIndex()).getHeight() : 0;
-        node.setHeight(Math.max(leftHeight, rightHeight) + 1);
+    private String generateTreeStructure(TreeNode node) {
+        if (node == null) return "null";
+        return String.format(
+                "{\"value\":%d,\"height\":%d,\"balanceFactor\":%d,\"left\":%s,\"right\":%s}",
+                node.getData(),
+                node.getHeight(),
+                node.getBalanceFactor(),
+                generateTreeStructure(node.getLeft()),
+                generateTreeStructure(node.getRight())
+        );
     }
 
-    private int getBalanceFactor(int nodeIndex) {
-        TreeNode node = nodes.get(nodeIndex);
-        int leftHeight = node.getLeftIndex() != null ? nodes.get(node.getLeftIndex()).getHeight() : 0;
-        int rightHeight = node.getRightIndex() != null ? nodes.get(node.getRightIndex()).getHeight() : 0;
-        return leftHeight - rightHeight;
+    public List<Integer> searchPath(int target) {
+        List<Integer> path = new ArrayList<>();
+        searchPathHelper(root, target, path);
+        return path;
     }
 
-    private int balance(int nodeIndex) {
-        updateHeight(nodeIndex);
-        int balance = getBalanceFactor(nodeIndex);
+    private boolean searchPathHelper(TreeNode node, int target, List<Integer> path) {
+        if (node == null) return false;
 
-        if (balance > 1) {
-            int leftChildIndex = nodes.get(nodeIndex).getLeftIndex();
-            if (getBalanceFactor(leftChildIndex) < 0) {
-                nodes.get(nodeIndex).setLeftIndex(rotateLeft(leftChildIndex));
-            }
-            return rotateRight(nodeIndex);
-        }
+        path.add(node.getData());
 
-        if (balance < -1) {
-            int rightChildIndex = nodes.get(nodeIndex).getRightIndex();
-            if (getBalanceFactor(rightChildIndex) > 0) {
-                nodes.get(nodeIndex).setRightIndex(rotateRight(rightChildIndex));
-            }
-            return rotateLeft(nodeIndex);
-        }
+        if (node.getData() == target) return true;
 
-        return nodeIndex;
-    }
+        if (target < node.getData() && searchPathHelper(node.getLeft(), target, path)) return true;
+        if (target > node.getData() && searchPathHelper(node.getRight(), target, path)) return true;
 
-    private int rotateLeft(int nodeIndex) {
-        TreeNode node = nodes.get(nodeIndex);
-        int rightIndex = node.getRightIndex();
-        TreeNode rightNode = nodes.get(rightIndex);
-
-        node.setRightIndex(rightNode.getLeftIndex());
-        rightNode.setLeftIndex(nodeIndex);
-
-        updateHeight(nodeIndex);
-        updateHeight(rightIndex);
-
-        return rightIndex;
-    }
-
-    private int rotateRight(int nodeIndex) {
-        TreeNode node = nodes.get(nodeIndex);
-        int leftIndex = node.getLeftIndex();
-        TreeNode leftNode = nodes.get(leftIndex);
-
-        node.setLeftIndex(leftNode.getRightIndex());
-        leftNode.setRightIndex(nodeIndex);
-
-        updateHeight(nodeIndex);
-        updateHeight(leftIndex);
-
-        return leftIndex;
+        path.remove(path.size() - 1);
+        return false;
     }
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
-    public List<Integer> getInputNumbers() { return inputNumbers; }
-    public List<TreeNode> getNodes() { return nodes; }
-    public int getLeafNodes() { return leafNodes; }
-    public void setLeafNodes(int leafNodes) { this.leafNodes = leafNodes; }
-    public int getDuplicates() { return duplicates; }
-    public void setDuplicates(int duplicates) { this.duplicates = duplicates; }
+
+    public String getInputNumbers() { return inputNumbers; }
+    public void setInputNumbers(String inputNumbers) { this.inputNumbers = inputNumbers; }
+
+    public String getTreeStructure() { return treeStructure; }
+    public void setTreeStructure(String treeStructure) { this.treeStructure = treeStructure; }
+
     public int getHeight() { return height; }
     public void setHeight(int height) { this.height = height; }
+
+    public int getLeafNodes() { return leafNodes; }
+    public void setLeafNodes(int leafNodes) { this.leafNodes = leafNodes; }
+
+    public int getBalanceFactor() { return balanceFactor; }
+    public void setBalanceFactor(int balanceFactor) { this.balanceFactor = balanceFactor; }
+
+    public int getTotalNodes() { return totalNodes; }
+    public void setTotalNodes(int totalNodes) { this.totalNodes = totalNodes; }
+
+    public boolean isBalanced() { return isBalanced; }
+    public void setBalanced(boolean balanced) { isBalanced = balanced; }
+
+    public TreeNode getRoot() { return root; }
 }

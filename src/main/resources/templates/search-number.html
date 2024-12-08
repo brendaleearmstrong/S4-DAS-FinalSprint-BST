@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search Binary Search Tree</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+    <style>
+        .nav-button {
+            padding: 0.5rem 1rem;
+            font-weight: 500;
+            border-radius: 0.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .nav-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .metric-card {
+            padding: 1rem;
+            border-radius: 0.5rem;
+            background: rgb(229, 244, 255);
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .metric-value {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: rgb(17, 24, 39);
+        }
+
+        .metric-label {
+            font-size: 0.875rem;
+            color: rgb(75, 85, 99);
+        }
+
+        .metric-icon {
+            font-size: 1.5rem;
+            color: #2563EB;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+<!-- Hero Banner -->
+<section class="bg-gradient-to-r from-blue-600 to-blue-400 text-white py-8">
+    <div class="container mx-auto px-4 text-center">
+        <h1 class="text-4xl font-bold">Search Binary Search Tree</h1>
+        <div class="mt-2">Brenda Armstrong | SD10 - Keyin College | S4 Data Structures & Algorithms</div>
+    </div>
+</section>
+
+<!-- Navigation Links -->
+<div class="container mx-auto px-4 py-4 text-center">
+    <div class="flex justify-center gap-4">
+        <a href="/" class="bg-blue-600 text-white nav-button">Home</a>
+        <a href="/enter-numbers" class="bg-blue-600 text-white nav-button">Create Tree</a>
+        <a href="/previous-trees" class="bg-blue-600 text-white nav-button">Previous Trees</a>
+    </div>
+</div>
+
+<!-- Main Content -->
+<div class="container mx-auto px-4 pb-8">
+    <div class="bg-white rounded-lg shadow-lg p-6">
+        <div class="search-section flex gap-4 mb-6">
+            <input type="number" id="searchNumber" class="flex-grow p-2 border rounded" placeholder="Enter a number to search">
+            <button onclick="searchNumber()" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">Search</button>
+        </div>
+
+        <div id="results-container" class="space-y-4"></div>
+    </div>
+</div>
+
+<script>
+    async function searchNumber() {
+        try {
+            const number = document.getElementById('searchNumber').value;
+            const response = await fetch('/search', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `number=${encodeURIComponent(number)}`
+            });
+
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error || 'Error performing search');
+            }
+
+            displayResults(data);
+        } catch (error) {
+            alert(error.message);
+        }
+    }
+
+    function displayResults(data) {
+        const container = document.getElementById('results-container');
+        container.innerHTML = '';
+
+        if (!data.found) {
+            container.innerHTML = `
+                <div class="p-4 bg-red-50 text-red-700 rounded">
+                    ${data.message}
+                </div>`;
+            return;
+        }
+
+        data.results.forEach(result => {
+            const resultDiv = document.createElement('div');
+            resultDiv.className = 'p-4 bg-gray-50 rounded shadow';
+
+            const tree = JSON.parse(result.treeStructure);
+            const searchPath = result.searchPath;
+
+            resultDiv.innerHTML = `
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div>
+                        <div class="font-bold text-gray-700 mb-2">Tree ID: ${result.treeId}</div>
+                        <div class="mb-2">Input Numbers: ${result.inputNumbers}</div>
+                        <div class="mb-2">Search Path: ${result.searchPath.join(' → ')}</div>
+                        <div class="grid grid-cols-2 gap-4 mt-4">
+                            <div class="metric-card">
+                                <i class="fas fa-ruler-vertical metric-icon"></i>
+                                <div>
+                                    <div class="metric-label">Height</div>
+                                    <div class="metric-value">${result.height}</div>
+                                </div>
+                            </div>
+                            <div class="metric-card">
+                                <i class="fas fa-sitemap metric-icon"></i>
+                                <div>
+                                    <div class="metric-label">Total Nodes</div>
+                                    <div class="metric-value">${result.totalNodes}</div>
+                                </div>
+                            </div>
+                            <div class="metric-card">
+                                <i class="fas fa-leaf metric-icon"></i>
+                                <div>
+                                    <div class="metric-label">Leaf Nodes</div>
+                                    <div class="metric-value">${result.leafNodes}</div>
+                                </div>
+                            </div>
+                            <div class="metric-card">
+                                <i class="fas fa-balance-scale metric-icon"></i>
+                                <div>
+                                    <div class="metric-label">Balance Factor</div>
+                                    <div class="metric-value">${result.balanceFactor}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="tree-container h-64 bg-white rounded shadow" id="tree-${result.treeId}"></div>
+                </div>
+            `;
+
+            container.appendChild(resultDiv);
+            const treeContainer = document.getElementById(`tree-${result.treeId}`);
+            const svg = createTreeSVG(tree, searchPath);
+            treeContainer.appendChild(svg);
+        });
+    }
+
+    function createTreeSVG(tree, searchPath) {
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('width', '100%');
+        svg.setAttribute('height', '100%');
+        svg.setAttribute('viewBox', '0 0 800 400');
+
+        const nodeRadius = 20;
+        const levelHeight = 80;
+
+        const drawNode = (node, x, y, width) => {
+            if (node === null) return;
+
+            const isInSearchPath = searchPath.includes(node.value);
+
+            const nextWidth = width / 2;
+            if (node.left) {
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', x);
+                line.setAttribute('y1', y + nodeRadius);
+                line.setAttribute('x2', x - nextWidth);
+                line.setAttribute('y2', y + levelHeight - nodeRadius);
+                line.setAttribute('stroke', '#2b6cb0');
+                line.setAttribute('stroke-width', '2');
+                svg.appendChild(line);
+                drawNode(node.left, x - nextWidth, y + levelHeight, nextWidth);
+            }
+
+            if (node.right) {
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', x);
+                line.setAttribute('y1', y + nodeRadius);
+                line.setAttribute('x2', x + nextWidth);
+                line.setAttribute('y2', y + levelHeight - nodeRadius);
+                line.setAttribute('stroke', '#2b6cb0');
+                line.setAttribute('stroke-width', '2');
+                svg.appendChild(line);
+                drawNode(node.right, x + nextWidth, y + levelHeight, nextWidth);
+            }
+
+            const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            circle.setAttribute('cx', x);
+            circle.setAttribute('cy', y);
+            circle.setAttribute('r', nodeRadius);
+            circle.setAttribute('fill', isInSearchPath ? '#48bb78' : '#4299e1');
+            circle.setAttribute('stroke', '#2b6cb0');
+            circle.setAttribute('stroke-width', '2');
+            svg.appendChild(circle);
+
+            const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            text.setAttribute('x', x);
+            text.setAttribute('y', y + 6);
+            text.setAttribute('text-anchor', 'middle');
+            text.setAttribute('fill', 'white');
+            text.textContent = node.value;
+            svg.appendChild(text);
+        };
+
+        drawNode(tree, 400, 40, 200);
+        return svg;
+    }
+
+    document.getElementById('searchNumber').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            searchNumber();
+        }
+    });
+</script>
+</body>
+</html>
