@@ -7,7 +7,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
-
 import java.util.List;
 import java.util.HashMap;
 import java.util.Map;
@@ -48,7 +47,6 @@ public class BinaryTreeController {
             response.put("balanceFactor", tree.getBalanceFactor());
             response.put("isBalanced", tree.isBalanced());
             response.put("id", tree.getId());
-            response.put("inputNumbers", tree.getInputNumbers());
             return ResponseEntity.ok(response);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
@@ -82,12 +80,18 @@ public class BinaryTreeController {
         }
     }
 
+    @GetMapping("/search-number")
+    public String showSearchNumber() {
+        return "search-number";
+    }
+
     @PostMapping("/search")
     @ResponseBody
     public ResponseEntity<?> searchNumber(@RequestParam("number") String numberStr) {
         try {
             int number = Integer.parseInt(numberStr.trim());
             List<SearchResult> results = binaryTreeService.searchNumber(number);
+
             if (results.isEmpty()) {
                 return ResponseEntity.ok(Map.of(
                         "found", false,
@@ -105,11 +109,6 @@ public class BinaryTreeController {
             return ResponseEntity.internalServerError()
                     .body(Map.of("error", "Error during search: " + e.getMessage()));
         }
-    }
-
-    @GetMapping("/search-number")
-    public String showSearchNumber() {
-        return "search-number";
     }
 
     @GetMapping("/tree/{id}/metrics")
@@ -132,44 +131,6 @@ public class BinaryTreeController {
         } catch (Exception e) {
             return ResponseEntity.internalServerError()
                     .body(Map.of("error", "Error retrieving tree metrics: " + e.getMessage()));
-        }
-    }
-
-    @DeleteMapping("/tree/{id}")
-    @ResponseBody
-    public ResponseEntity<?> deleteTree(@PathVariable Long id) {
-        try {
-            binaryTreeService.deleteTree(id);
-            return ResponseEntity.ok(Map.of("message", "Tree deleted successfully"));
-        } catch (Exception e) {
-            return ResponseEntity.internalServerError()
-                    .body(Map.of("error", "Error deleting tree: " + e.getMessage()));
-        }
-    }
-
-    @DeleteMapping("/trees")
-    @ResponseBody
-    public ResponseEntity<?> deleteAllTrees() {
-        try {
-            binaryTreeService.deleteAllTrees();
-            return ResponseEntity.ok(Map.of("message", "All trees deleted successfully"));
-        } catch (Exception e) {
-            return ResponseEntity.internalServerError()
-                    .body(Map.of("error", "Error deleting trees: " + e.getMessage()));
-        }
-    }
-
-    @GetMapping("/metrics")
-    @ResponseBody
-    public ResponseEntity<?> getMetrics() {
-        try {
-            Map<String, Object> metrics = new HashMap<>();
-            metrics.put("totalTrees", binaryTreeService.getTreeCount());
-            metrics.put("balancedTrees", binaryTreeService.findBalancedTrees().size());
-            return ResponseEntity.ok(metrics);
-        } catch (Exception e) {
-            return ResponseEntity.internalServerError()
-                    .body(Map.of("error", "Error retrieving metrics: " + e.getMessage()));
         }
     }
 

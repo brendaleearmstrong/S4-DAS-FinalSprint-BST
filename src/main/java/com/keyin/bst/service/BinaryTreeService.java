@@ -40,30 +40,18 @@ public class BinaryTreeService {
 
     @Transactional(readOnly = true)
     public List<BinarySearchTree> getAllTrees() {
-        try {
-            return binaryTreeRepository.findAllByOrderByIdDesc();
-        } catch (Exception e) {
-            throw new RuntimeException("Error retrieving trees: " + e.getMessage());
-        }
+        return binaryTreeRepository.findAllByOrderByIdDesc();
     }
 
     @Transactional(readOnly = true)
     public List<BinarySearchTree> getRecentTrees() {
-        try {
-            return binaryTreeRepository.findTop10ByOrderByIdDesc();
-        } catch (Exception e) {
-            throw new RuntimeException("Error retrieving recent trees: " + e.getMessage());
-        }
+        return binaryTreeRepository.findTop10ByOrderByIdDesc();
     }
 
     @Transactional(readOnly = true)
     public BinarySearchTree getTreeById(Long id) {
-        try {
-            return binaryTreeRepository.findById(id)
-                    .orElseThrow(() -> new RuntimeException("Tree not found with id: " + id));
-        } catch (Exception e) {
-            throw new RuntimeException("Error retrieving tree: " + e.getMessage());
-        }
+        return binaryTreeRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Tree not found with id: " + id));
     }
 
     @Transactional(readOnly = true)
@@ -73,6 +61,9 @@ public class BinaryTreeService {
             List<SearchResult> results = new ArrayList<>();
 
             for (BinarySearchTree tree : trees) {
+                List<Integer> numbers = tree.createListOfNumbersFromString(tree.getInputNumbers());
+                tree.insertNumbers(numbers);
+
                 List<Integer> path = tree.searchPath(number);
                 if (!path.isEmpty() && path.get(path.size() - 1) == number) {
                     results.add(new SearchResult(

@@ -170,20 +170,34 @@ public class BinarySearchTree {
     public List<Integer> searchPath(int target) {
         List<Integer> path = new ArrayList<>();
         searchPathHelper(root, target, path);
+        System.out.println("Search path for " + target + ": " + path);
         return path;
     }
 
     private boolean searchPathHelper(TreeNode node, int target, List<Integer> path) {
-        if (node == null) return false;
+        if (node == null) {
+            System.out.println("Reached null node");
+            return false;
+        }
 
         path.add(node.getData());
+        System.out.println("Visiting node: " + node.getData());
 
-        if (node.getData() == target) return true;
+        if (node.getData() == target) {
+            System.out.println("Found target");
+            return true;
+        }
 
-        if (target < node.getData() && searchPathHelper(node.getLeft(), target, path)) return true;
-        if (target > node.getData() && searchPathHelper(node.getRight(), target, path)) return true;
+        if (target < node.getData() && searchPathHelper(node.getLeft(), target, path)) {
+            return true;
+        }
+
+        if (target > node.getData() && searchPathHelper(node.getRight(), target, path)) {
+            return true;
+        }
 
         path.remove(path.size() - 1);
+        System.out.println("Backtracking from: " + node.getData());
         return false;
     }
 
